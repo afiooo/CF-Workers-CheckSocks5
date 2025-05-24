@@ -94,9 +94,8 @@ async function 检测HTTP代理(代理参数) {
         });
     }
 
-    // 使用HTTP代理访问http://check.socks5.090227.xyz/cdn-cgi/trace 并显示返回网页内容
     try {
-        const result = await checkHttpProxy('cf.090227.xyz', 80, '/cdn-cgi/trace');
+        const result = await checkHttpProxy('check.socks5.090227.xyz', 80, '/cdn-cgi/trace');
         const 代理落地IP = result.match(/ip=(.*)/)[1];
 
         // 直接调用IP查询逻辑，而不是发送HTTP请求
@@ -143,9 +142,8 @@ async function 检测SOCKS5代理(代理参数) {
         });
     }
 
-    // 使用socks5代理访问http://check.socks5.090227.xyz/cdn-cgi/trace 并显示返回网页内容
     try {
-        const result = await checkSocks5Proxy('cf.090227.xyz', 80, '/cdn-cgi/trace');
+        const result = await checkSocks5Proxy('check.socks5.090227.xyz', 80, '/cdn-cgi/trace');
         const 代理落地IP = result.match(/ip=(.*)/)[1];
 
         // 直接调用IP查询逻辑，而不是发送HTTP请求
