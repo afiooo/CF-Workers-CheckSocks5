@@ -100,7 +100,16 @@ export default {
             });
         } else if (env.URL302) return Response.redirect(env.URL302, 302);
         else if (env.URL) return await 代理URL(env.URL, url);
-        else return await HTML();
+        else {
+            const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
+            const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5 - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
+            let img = 'background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 50%, #a5d6a7 100%);';
+            if (env.IMG) {
+                const imgs = await 整理(env.IMG);
+                img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
+            }
+            return await HTML(网站图标, 网络备案, img);
+        }
     },
 };
 
@@ -518,41 +527,41 @@ async function socks5Connect(addressType, addressRemote, portRemote) {
  */
 async function getIpInfo(ip) {
     // IPv4 正则表达式
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
     // IPv6 正则表达式（简化版，包含常见格式）
     const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
-    
+
     let finalIp = ip;
     let allIps = null; // 存储所有解析的IP地址
-    
+
     // 检查是否是标准的 IPv4 或 IPv6 格式
     if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip)) {
         // 不是标准 IP 格式，尝试 DNS 解析
         try {
             console.log(`正在解析域名: ${ip}`);
-            
+
             // 并发获取 A 记录（IPv4）和 AAAA 记录（IPv6）
             const [ipv4Records, ipv6Records] = await Promise.all([
                 fetchDNSRecords(ip, 'A').catch(() => []),
                 fetchDNSRecords(ip, 'AAAA').catch(() => [])
             ]);
-            
+
             // 提取 IP 地址
             const ipv4Addresses = ipv4Records.map(record => record.data).filter(Boolean);
             const ipv6Addresses = ipv6Records.map(record => record.data).filter(Boolean);
-            
+
             // 合并所有 IP 地址
             allIps = [...ipv4Addresses, ...ipv6Addresses];
-            
+
             if (allIps.length === 0) {
                 throw new Error(`无法解析域名 ${ip} 的 IP 地址`);
             }
-            
+
             // 随机选择一个 IP 地址
             finalIp = allIps[Math.floor(Math.random() * allIps.length)];
             console.log(`域名 ${ip} 解析为: ${finalIp}`);
-            
+
         } catch (dnsError) {
             console.error(`DNS 解析失败:`, dnsError);
             throw new Error(`无法解析域名 ${ip}: ${dnsError.message}`);
@@ -570,17 +579,17 @@ async function getIpInfo(ip) {
 
     // 添加时间戳到成功的响应数据中
     data.timestamp = new Date().toISOString();
-    
+
     // 如果原始输入是域名，添加域名解析信息
     if (finalIp !== ip && allIps) {
         data.domain = ip; // 原始域名
         data.resolved_ip = finalIp; // 当前查询使用的IP
         data.ips = allIps; // 所有解析到的IP地址数组
-        
+
         // 添加解析统计信息
         const ipv4Count = allIps.filter(addr => ipv4Regex.test(addr)).length;
         const ipv6Count = allIps.filter(addr => ipv6Regex.test(addr)).length;
-        
+
         data.dns_info = {
             total_ips: allIps.length,
             ipv4_count: ipv4Count,
@@ -818,32 +827,32 @@ async function 整理(内容) {
 }
 
 async function fetchDNSRecords(domain, type) {
-	// 构建查询参数
-	const query = new URLSearchParams({
-		name: domain,
-		type: type
-	});
-	const url = `https://cloudflare-dns.com/dns-query?${query.toString()}`;
+    // 构建查询参数
+    const query = new URLSearchParams({
+        name: domain,
+        type: type
+    });
+    const url = `https://cloudflare-dns.com/dns-query?${query.toString()}`;
 
-	// 发送HTTP GET请求
-	const response = await fetch(url, {
-		method: 'GET',
-		headers: {
-			'Accept': 'application/dns-json' // 接受DNS JSON格式的响应
-		}
-	});
+    // 发送HTTP GET请求
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/dns-json' // 接受DNS JSON格式的响应
+        }
+    });
 
-	// 检查响应是否成功
-	if (!response.ok) {
-		throw new Error(`获取DNS记录失败: ${response.statusText}`);
-	}
+    // 检查响应是否成功
+    if (!response.ok) {
+        throw new Error(`获取DNS记录失败: ${response.statusText}`);
+    }
 
-	// 解析响应数据
-	const data = await response.json();
-	return data.Answer || [];
+    // 解析响应数据
+    const data = await response.json();
+    return data.Answer || [];
 }
 
-async function HTML() {
+async function HTML(网站图标, 网络备案, img) {
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -851,6 +860,7 @@ async function HTML() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>代理检测工具</title>
+    ${网站图标}
     <style>
         * {
             margin: 0;
@@ -860,41 +870,129 @@ async function HTML() {
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            ${img}
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
             min-height: 100vh;
             padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(232, 245, 232, 0.1);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 0;
+            pointer-events: none;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            background: rgba(248, 253, 248, 0.15);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(46, 125, 50, 0.2), 
+                        0 10px 20px rgba(46, 125, 50, 0.1),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                        inset 0 -1px 0 rgba(255, 255, 255, 0.1);
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.15) 0%, 
+                rgba(255, 255, 255, 0.08) 30%,
+                rgba(255, 255, 255, 0.03) 70%, 
+                rgba(255, 255, 255, 0.01) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .container::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                rgba(76, 175, 80, 0.3), 
+                rgba(139, 195, 74, 0.2), 
+                rgba(102, 187, 106, 0.3));
+            border-radius: 22px;
+            z-index: -1;
+            filter: blur(4px);
+            opacity: 0.6;
+        }
+        
+        .container > * {
+            position: relative;
+            z-index: 2;
         }
         
         .header {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            padding: 30px;
+            background: rgba(46, 125, 50, 0.2);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            color: #fff;
+            padding: 35px;
             text-align: center;
+            position: relative;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(46, 125, 50, 0.3), rgba(76, 175, 80, 0.2), rgba(102, 187, 106, 0.3));
+            pointer-events: none;
         }
         
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
         }
         
         .header p {
             font-size: 1.1em;
-            opacity: 0.9;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
         
         .input-section {
-            padding: 30px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
+            padding: 35px;
+            background: rgba(241, 248, 233, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(200, 230, 201, 0.3);
         }
         
         .input-group {
@@ -907,75 +1005,109 @@ async function HTML() {
         
         .input-group input {
             flex: 1;
-            padding: 15px 20px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
+            padding: 16px 22px;
+            border: 2px solid rgba(165, 214, 167, 0.6);
+            border-radius: 12px;
             font-size: 16px;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
+            background: #ffffff;
+            color: #2e4e2e;
+            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
         }
         
         .input-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4caf50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2), 0 2px 8px rgba(46, 125, 50, 0.15);
+        }
+        
+        .input-group input::placeholder {
+            color: #81a882;
         }
         
         .input-group button {
-            padding: 15px 30px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            padding: 16px 32px;
+            background: rgba(56, 142, 60, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: white;
-            border: none;
-            border-radius: 10px;
+            border: 2px solid rgba(76, 175, 80, 0.4);
+            border-radius: 12px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         
         .input-group button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 6px 18px rgba(76, 175, 80, 0.4);
+            background: rgba(46, 125, 50, 0.4);
+            border-color: rgba(76, 175, 80, 0.6);
         }
         
         .input-group button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
         }
         
         .results-section {
-            padding: 30px;
+            padding: 35px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
+            background: rgba(248, 253, 248, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
         }
         
         .info-card {
-            background: #fff;
-            border: 2px solid #e9ecef;
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 2px solid rgba(200, 230, 201, 0.3);
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(46, 125, 50, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.2);
         }
         
         .info-card h3 {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #2e7d32, #4caf50);
             color: white;
-            padding: 20px;
+            padding: 22px;
             margin: 0;
             font-size: 1.3em;
             text-align: center;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .info-content {
-            padding: 25px;
+            padding: 28px;
+            background: #ffffff;
+            border-top: 1px solid rgba(232, 245, 232, 0.6);
         }
         
         .info-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(232, 245, 232, 0.6);
         }
         
         .info-item:last-child {
@@ -983,63 +1115,103 @@ async function HTML() {
         }
         
         .info-label {
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: #2e4e2e;
             min-width: 120px;
         }
         
         .info-value {
             text-align: right;
             flex: 1;
+            color: #4e6b4e;
         }
         
         .status-yes {
-            background: #dc3545;
+            background: rgba(211, 47, 47, 0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             color: white;
-            padding: 4px 8px;
-            border-radius: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
             font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
         }
         
         .status-no {
-            background: #28a745;
+            background: rgba(46, 125, 50, 0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             color: white;
-            padding: 4px 8px;
-            border-radius: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
             font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(46, 125, 50, 0.3);
         }
         
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            padding: 45px;
+            color: rgba(90, 122, 90, 0.9);
             font-size: 1.1em;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
         }
         
         .error {
             text-align: center;
-            padding: 40px;
-            color: #dc3545;
+            padding: 45px;
+            color: rgba(211, 47, 47, 0.9);
             font-size: 1.1em;
+            background: rgba(244, 67, 54, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            margin: 10px;
+            border: 1px solid rgba(244, 67, 54, 0.2);
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
         }
         
         .waiting {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            padding: 45px;
+            color: rgba(90, 122, 90, 0.9);
             font-size: 1.1em;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
         }
         
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 3px solid rgba(232, 245, 232, 0.4);
+            border-top: 3px solid rgba(76, 175, 80, 0.8);
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 18px;
         }
         
+        .github-corner svg {
+            fill: #2e7d32;
+            color: #ffffff;
+            position: fixed;
+            top: 0;
+            right: 0;
+            border: 0;
+            width: 80px;
+            height: 80px;
+        }
+
+        .github-corner:hover .octo-arm {
+        animation: octocat-wave 560ms ease-in-out;
+        }
+
+        /* 添加章鱼猫挥手动画关键帧 */
+        @keyframes octocat-wave {
+            0%, 100% { transform: rotate(0); }
+            20%, 60% { transform: rotate(-25deg); }
+            40%, 80% { transform: rotate(10deg); }
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -1058,14 +1230,52 @@ async function HTML() {
             .input-group button {
                 width: 100%;
             }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 16px;
+            }
+
+            .github-corner:hover .octo-arm {
+                animation: none;
+            }
+
+            .github-corner .octo-arm {
+                animation: octocat-wave 560ms ease-in-out;
+            }
         }
+
+        .footer {
+            text-align: center;
+            padding: 25px;
+            color: rgba(90, 122, 90, 0.8);
+            font-size: 14px;
+            border-top: 1px solid rgba(232, 245, 232, 0.3);
+            background: rgba(241, 248, 233, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        
     </style>
 </head>
 <body>
+  <a href="https://github.com/cmliu/CF-Workers-CheckSocks5" target="_blank" class="github-corner" aria-label="View source on Github">
+    <svg viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+      <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+      <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+    </svg>
+  </a>
     <div class="container">
         <div class="header">
             <h1>代理检测工具</h1>
-            <p>检测代理服务器的入口和出口信息，支持 SOCKS5 和 HTTP 代理</p>
+            <p>检测代理服务器的出入口信息，支持 SOCKS5 和 HTTP 代理</p>
         </div>
         
         <div class="input-section">
@@ -1089,6 +1299,10 @@ async function HTML() {
                     <div class="waiting">请输入代理链接并点击检查</div>
                 </div>
             </div>
+        </div>
+        
+        <div class="footer">
+            ${网络备案}
         </div>
     </div>
 
