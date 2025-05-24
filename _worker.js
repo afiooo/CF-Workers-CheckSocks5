@@ -1,14 +1,30 @@
 import { connect } from 'cloudflare:sockets';
-const currentDate = new Date();
-currentDate.setHours(0, 0, 0, 0);
-let token = Math.ceil(currentDate.getTime() / (1000 * 60 * 13)); // 每13分钟一个时间戳
+let 临时TOKEN, 永久TOKEN;
 let parsedSocks5Address = {};
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
-        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 7)); // 每7分钟一个时间戳
-        token = env.TOKEN || token;
+        const currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 5)); // 每5分钟一个时间戳
+        临时TOKEN = await 双重哈希(url.hostname + timestamp);
+        永久TOKEN = env.TOKEN || 临时TOKEN;
         if (url.pathname.toLowerCase() === "/check") {
+            if (env.TOKEN) {
+                if (!url.searchParams.has('token') || url.searchParams.get('token') !== 永久TOKEN) {
+                    return new Response(JSON.stringify({
+                        status: "error",
+                        message: `IP查询失败: 无效的TOKEN`,
+                        timestamp: new Date().toISOString()
+                    }, null, 4), {
+                        status: 403,
+                        headers: {
+                            "content-type": "application/json; charset=UTF-8",
+                            'Access-Control-Allow-Origin': '*'
+                        }
+                    });
+                }
+            }
             if (url.searchParams.has("socks5")) {
                 const 代理参数 = url.searchParams.get("socks5");
                 return await 检测SOCKS5代理(代理参数);
@@ -32,6 +48,19 @@ export default {
                 headers: { 'Content-Type': 'application/json' }
             });
         } else if (url.pathname.toLowerCase() === '/ip-info') {
+            if (!url.searchParams.has('token') || (url.searchParams.get('token') !== 临时TOKEN) && (url.searchParams.get('token') !== 永久TOKEN)) {
+                return new Response(JSON.stringify({
+                    status: "error",
+                    message: `IP查询失败: 无效的TOKEN`,
+                    timestamp: new Date().toISOString()
+                }, null, 4), {
+                    status: 403,
+                    headers: {
+                        "content-type": "application/json; charset=UTF-8",
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
             const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
             try {
                 const data = await getIpInfo(ip);
@@ -63,16 +92,15 @@ export default {
                 });
             }
         }
-        if (env.URL302) return Response.redirect(env.URL302, 302);
-        else if (env.URL) {
-            if (env.URL.toString().toLowerCase() == 'nginx') {
-                return new Response(await nginx(), {
-                    headers: {
-                        'Content-Type': 'text/html; charset=UTF-8',
-                    },
-                });
-            } else return await 代理URL(env.URL, url);
-        } else return await HTML();
+        if (env.TOKEN) {
+            return new Response(await nginx(), {
+                headers: {
+                    'Content-Type': 'text/html; charset=UTF-8',
+                },
+            });
+        } else if (env.URL302) return Response.redirect(env.URL302, 302);
+        else if (env.URL) return await 代理URL(env.URL, url);
+        else return await HTML();
     },
 };
 
@@ -700,37 +728,494 @@ async function 代理URL(代理网址, 目标网址) {
  * @returns {Promise<string>} 双重哈希后的小写十六进制字符串
  */
 async function 双重哈希(文本) {
-	const 编码器 = new TextEncoder();
+    const 编码器 = new TextEncoder();
 
-	const 第一次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(文本));
-	const 第一次哈希数组 = Array.from(new Uint8Array(第一次哈希));
-	const 第一次十六进制 = 第一次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
+    const 第一次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(文本));
+    const 第一次哈希数组 = Array.from(new Uint8Array(第一次哈希));
+    const 第一次十六进制 = 第一次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
 
-	const 第二次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(第一次十六进制.slice(7, 27)));
-	const 第二次哈希数组 = Array.from(new Uint8Array(第二次哈希));
-	const 第二次十六进制 = 第二次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
+    const 第二次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(第一次十六进制.slice(7, 27)));
+    const 第二次哈希数组 = Array.from(new Uint8Array(第二次哈希));
+    const 第二次十六进制 = 第二次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
 
-	return 第二次十六进制.toLowerCase();
+    return 第二次十六进制.toLowerCase();
 }
 
 async function 整理(内容) {
-	// 将制表符、双引号、单引号和换行符都替换为逗号
-	// 然后将连续的多个逗号替换为单个逗号
-	var 替换后的内容 = 内容.replace(/[	|"'\r\n]+/g, ',').replace(/,+/g, ',');
+    // 将制表符、双引号、单引号和换行符都替换为逗号
+    // 然后将连续的多个逗号替换为单个逗号
+    var 替换后的内容 = 内容.replace(/[	|"'\r\n]+/g, ',').replace(/,+/g, ',');
 
-	// 删除开头和结尾的逗号（如果有的话）
-	if (替换后的内容.charAt(0) == ',') 替换后的内容 = 替换后的内容.slice(1);
-	if (替换后的内容.charAt(替换后的内容.length - 1) == ',') 替换后的内容 = 替换后的内容.slice(0, 替换后的内容.length - 1);
+    // 删除开头和结尾的逗号（如果有的话）
+    if (替换后的内容.charAt(0) == ',') 替换后的内容 = 替换后的内容.slice(1);
+    if (替换后的内容.charAt(替换后的内容.length - 1) == ',') 替换后的内容 = 替换后的内容.slice(0, 替换后的内容.length - 1);
 
-	// 使用逗号分割字符串，得到地址数组
-	const 地址数组 = 替换后的内容.split(',');
+    // 使用逗号分割字符串，得到地址数组
+    const 地址数组 = 替换后的内容.split(',');
 
-	return 地址数组;
+    return 地址数组;
 }
 
 async function HTML() {
-    // 否则返回 HTML 页面
-    const html = ``;
+    const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代理检测工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .input-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-group button {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .input-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .input-group button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-section {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .info-card {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .info-card h3 {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            font-size: 1.3em;
+            text-align: center;
+        }
+        
+        .info-content {
+            padding: 25px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            min-width: 120px;
+        }
+        
+        .info-value {
+            text-align: right;
+            flex: 1;
+        }
+        
+        .status-yes {
+            background: #dc3545;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .status-no {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #dc3545;
+            font-size: 1.1em;
+        }
+        
+        .waiting {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .input-group input,
+            .input-group button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>代理检测工具</h1>
+            <p>检测代理服务器的入口和出口信息，支持 SOCKS5 和 HTTP 代理</p>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <input type="text" id="proxyInput" placeholder="输入代理链接，例如：socks5://username:password@host:port" />
+                <button id="checkBtn" onclick="checkProxy()">检查代理</button>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <div class="info-card">
+                <h3>入口信息</h3>
+                <div class="info-content" id="entryInfo">
+                    <div class="waiting">请输入代理链接并点击检查</div>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h3>出口信息</h3>
+                <div class="info-content" id="exitInfo">
+                    <div class="waiting">请输入代理链接并点击检查</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function extractHostFromProxy(proxyUrl) {
+            try {
+                // 移除协议前缀
+                let urlPart = proxyUrl.includes('://') ? proxyUrl.split('://')[1] : proxyUrl;
+                
+                // 处理认证信息 (username:password@host:port)
+                if (urlPart.includes('@')) {
+                    urlPart = urlPart.split('@')[1];
+                }
+                
+                // 提取主机名（移除端口）
+                let host = urlPart.split(':')[0];
+                
+                // 处理IPv6地址
+                if (host.startsWith('[') && host.includes(']')) {
+                    host = host.substring(1, host.indexOf(']'));
+                }
+                
+                return host;
+            } catch (error) {
+                throw new Error('无法解析代理链接格式');
+            }
+        }
+        
+        function getAbusescoreColor(score) {
+            // 提取数字部分并转换为百分比
+            const match = score.match(/([0-9.]+)/);
+            if (!match) return '#28a745';
+            
+            const percentage = parseFloat(match[1]) * 100;
+            
+            // 0% 绿色到 100% 红色的渐变
+            const red = Math.min(255, Math.round(percentage * 2.55));
+            const green = Math.min(255, Math.round((100 - percentage) * 2.55));
+            
+            return \`rgb(\${red}, \${green}, 0)\`;
+        }
+        
+        function formatInfoDisplay(data, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!data || data.error) {
+                container.innerHTML = '<div class="error">数据获取失败，请稍后重试</div>';
+                return;
+            }
+            
+            const abusescoreColor = getAbusescoreColor(data.asn?.abuser_score || '0');
+            const abusescoreMatch = (data.asn?.abuser_score || '0').match(/([0-9.]+)/);
+            const abusescorePercentage = abusescoreMatch ? (parseFloat(abusescoreMatch[1]) * 100).toFixed(2) + '%' : '0%';
+            
+            container.innerHTML = \`
+                <div class="info-item">
+                    <span class="info-label">IP地址:</span>
+                    <span class="info-value">\${data.ip || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">网络爬虫:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_crawler ? 'status-yes' : 'status-no'}">
+                            \${data.is_crawler ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">数据中心:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_datacenter ? 'status-yes' : 'status-no'}">
+                            \${data.is_datacenter ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tor网络:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_tor ? 'status-yes' : 'status-no'}">
+                            \${data.is_tor ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">代理:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_proxy ? 'status-yes' : 'status-no'}">
+                            \${data.is_proxy ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">VPN:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_vpn ? 'status-yes' : 'status-no'}">
+                            \${data.is_vpn ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">滥用行为:</span>
+                    <span class="info-value">
+                        <span class="\${data.is_abuser ? 'status-yes' : 'status-no'}">
+                            \${data.is_abuser ? '是' : '否'}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">滥用风险评分:</span>
+                    <span class="info-value">
+                        <span style="background-color: \${abusescoreColor}; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.9em;">
+                            \${abusescorePercentage}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">自治系统编号:</span>
+                    <span class="info-value">\${'AS' + data.asn?.asn || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">所属组织:</span>
+                    <span class="info-value">\${data.asn?.org || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">国家:</span>
+                    <span class="info-value">\${data.location?.country_code || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">城市:</span>
+                    <span class="info-value">\${data.location?.city || 'N/A'}</span>
+                </div>
+            \`;
+        }
+        
+        async function fetchEntryInfo(host, retryCount = 0) {
+            try {
+                const response = await fetch(\`/ip-info?ip=\${encodeURIComponent(host)}&token=${临时TOKEN}\`);
+                const data = await response.json();
+                
+                if (data.error && retryCount < 3) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return fetchEntryInfo(host, retryCount + 1);
+                }
+                
+                return data;
+            } catch (error) {
+                if (retryCount < 3) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return fetchEntryInfo(host, retryCount + 1);
+                }
+                throw error;
+            }
+        }
+        
+        async function checkProxy() {
+            const proxyInput = document.getElementById('proxyInput');
+            const checkBtn = document.getElementById('checkBtn');
+            const entryInfo = document.getElementById('entryInfo');
+            const exitInfo = document.getElementById('exitInfo');
+            
+            const proxyUrl = proxyInput.value.trim();
+            if (!proxyUrl) {
+                alert('请输入代理链接');
+                return;
+            }
+            
+            checkBtn.disabled = true;
+            entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测入口信息...</div>';
+            exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测出口信息...</div>';
+            
+            try {
+                // 检查代理（获取出口信息）
+                const encodedProxy = encodeURIComponent(proxyUrl);
+                const proxyResponse = await fetch(\`/check?proxy=\${encodedProxy}\`);
+                const proxyData = await proxyResponse.json();
+                
+                if (!proxyData.success) {
+                    entryInfo.innerHTML = '<div class="error">代理无效，请检查代理链接后重试</div>';
+                    exitInfo.innerHTML = '<div class="error">代理无效，请检查代理链接后重试</div>';
+                    return;
+                }
+                
+                // 显示出口信息
+                formatInfoDisplay(proxyData, 'exitInfo');
+                
+                // 获取入口信息
+                const host = extractHostFromProxy(proxyUrl);
+                const entryData = await fetchEntryInfo(host);
+                
+                if (entryData.error) {
+                    entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
+                } else {
+                    formatInfoDisplay(entryData, 'entryInfo');
+                }
+                
+            } catch (error) {
+                console.error('检测过程中出现错误:', error);
+                entryInfo.innerHTML = '<div class="error">检测失败，请稍后重试</div>';
+                exitInfo.innerHTML = '<div class="error">检测失败，请稍后重试</div>';
+            } finally {
+                checkBtn.disabled = false;
+            }
+        }
+        
+        // 回车键触发检查
+        document.getElementById('proxyInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkProxy();
+            }
+        });
+    </script>
+</body>
+</html>
+    `;
 
     return new Response(html, {
         headers: { "content-type": "text/html;charset=UTF-8" }
