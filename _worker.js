@@ -887,7 +887,7 @@ async function HTML(网站图标, 网络备案, img) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(232, 245, 232, 0.1);
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
             z-index: 0;
@@ -897,12 +897,12 @@ async function HTML(网站图标, 网络备案, img) {
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: rgba(248, 253, 248, 0.15);
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(25px) saturate(180%);
             -webkit-backdrop-filter: blur(25px) saturate(180%);
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(46, 125, 50, 0.2), 
-                        0 10px 20px rgba(46, 125, 50, 0.1),
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 
+                        0 10px 20px rgba(0, 0, 0, 0.05),
                         inset 0 1px 0 rgba(255, 255, 255, 0.4),
                         inset 0 -1px 0 rgba(255, 255, 255, 0.1);
             overflow: hidden;
@@ -934,14 +934,11 @@ async function HTML(网站图标, 网络备案, img) {
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(45deg, 
-                rgba(76, 175, 80, 0.3), 
-                rgba(139, 195, 74, 0.2), 
-                rgba(102, 187, 106, 0.3));
+            background: rgba(200, 200, 200, 0.2);
             border-radius: 22px;
             z-index: -1;
             filter: blur(4px);
-            opacity: 0.6;
+            opacity: 0.3;
         }
         
         .container > * {
@@ -950,7 +947,7 @@ async function HTML(网站图标, 网络备案, img) {
         }
         
         .header {
-            background: rgba(46, 125, 50, 0.2);
+            background: linear-gradient(45deg, #2e7d32, #4caf50);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             color: #fff;
@@ -989,10 +986,10 @@ async function HTML(网站图标, 网络备案, img) {
         
         .input-section {
             padding: 35px;
-            background: rgba(241, 248, 233, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            border-bottom: 1px solid rgba(200, 230, 201, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .input-group {
@@ -1006,53 +1003,53 @@ async function HTML(网站图标, 网络备案, img) {
         .input-group input {
             flex: 1;
             padding: 16px 22px;
-            border: 2px solid rgba(165, 214, 167, 0.6);
+            border: 2px solid rgba(200, 200, 200, 0.6);
             border-radius: 12px;
             font-size: 16px;
             transition: all 0.3s ease;
             background: #ffffff;
-            color: #2e4e2e;
-            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
+            color: #333333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         .input-group input:focus {
             outline: none;
-            border-color: #4caf50;
-            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2), 0 2px 8px rgba(46, 125, 50, 0.15);
+            border-color: #666666;
+            box-shadow: 0 0 0 3px rgba(100, 100, 100, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         .input-group input::placeholder {
-            color: #81a882;
+            color: #888888;
         }
         
         .input-group button {
             padding: 16px 32px;
-            background: rgba(56, 142, 60, 0.3);
+            background: rgba(100, 100, 100, 0.3);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             color: white;
-            border: 2px solid rgba(76, 175, 80, 0.4);
+            border: 2px solid rgba(150, 150, 150, 0.4);
             border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         
         .input-group button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(76, 175, 80, 0.4);
-            background: rgba(46, 125, 50, 0.4);
-            border-color: rgba(76, 175, 80, 0.6);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            background: rgba(80, 80, 80, 0.4);
+            border-color: rgba(120, 120, 120, 0.6);
         }
         
         .input-group button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
-            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         }
         
         .results-section {
@@ -1060,28 +1057,28 @@ async function HTML(网站图标, 网络备案, img) {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
-            background: rgba(248, 253, 248, 0.05);
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
         }
         
         .info-card {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 2px solid rgba(200, 230, 201, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.15),
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1),
                         inset 0 1px 0 rgba(255, 255, 255, 0.4);
             transition: all 0.3s ease;
         }
         
         .info-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(46, 125, 50, 0.2),
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15),
                         inset 0 1px 0 rgba(255, 255, 255, 0.5);
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
         }
         
         .info-card h3 {
@@ -1099,7 +1096,7 @@ async function HTML(网站图标, 网络备案, img) {
         .info-content {
             padding: 28px;
             background: #ffffff;
-            border-top: 1px solid rgba(232, 245, 232, 0.6);
+            border-top: 1px solid rgba(200, 200, 200, 0.3);
         }
         
         .info-item {
@@ -1107,7 +1104,7 @@ async function HTML(网站图标, 网络备案, img) {
             justify-content: space-between;
             align-items: center;
             padding: 14px 0;
-            border-bottom: 1px solid rgba(232, 245, 232, 0.6);
+            border-bottom: 1px solid rgba(200, 200, 200, 0.3);
         }
         
         .info-item:last-child {
@@ -1116,46 +1113,39 @@ async function HTML(网站图标, 网络备案, img) {
         
         .info-label {
             font-weight: 600;
-            color: #2e4e2e;
+            color: #333333;
             min-width: 120px;
         }
         
         .info-value {
             text-align: right;
             flex: 1;
-            color: #4e6b4e;
+            color: #666666;
         }
         
         .status-yes {
             background: rgba(211, 47, 47, 0.8);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
             color: white;
             padding: 5px 10px;
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: 500;
-            box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
         }
         
         .status-no {
-            background: rgba(46, 125, 50, 0.8);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            background: rgba(54,137,61, 0.8);
             color: white;
             padding: 5px 10px;
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: 500;
-            box-shadow: 0 2px 4px rgba(46, 125, 50, 0.3);
         }
         
         .loading {
             text-align: center;
             padding: 45px;
-            color: rgba(90, 122, 90, 0.9);
+            color: #666666;
             font-size: 1.1em;
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
         }
         
         .error {
@@ -1164,25 +1154,21 @@ async function HTML(网站图标, 网络备案, img) {
             color: rgba(211, 47, 47, 0.9);
             font-size: 1.1em;
             background: rgba(244, 67, 54, 0.1);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border-radius: 8px;
             margin: 10px;
             border: 1px solid rgba(244, 67, 54, 0.2);
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
         }
         
         .waiting {
             text-align: center;
             padding: 45px;
-            color: rgba(90, 122, 90, 0.9);
+            color: #666666;
             font-size: 1.1em;
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
         }
         
         .spinner {
-            border: 3px solid rgba(232, 245, 232, 0.4);
-            border-top: 3px solid rgba(76, 175, 80, 0.8);
+            border: 3px solid rgba(200, 200, 200, 0.4);
+            border-top: 3px solid rgba(100, 100, 100, 0.8);
             border-radius: 50%;
             width: 32px;
             height: 32px;
@@ -1205,7 +1191,6 @@ async function HTML(网站图标, 网络备案, img) {
         animation: octocat-wave 560ms ease-in-out;
         }
 
-        /* 添加章鱼猫挥手动画关键帧 */
         @keyframes octocat-wave {
             0%, 100% { transform: rotate(0); }
             20%, 60% { transform: rotate(-25deg); }
@@ -1252,16 +1237,13 @@ async function HTML(网站图标, 网络备案, img) {
         .footer {
             text-align: center;
             padding: 25px;
-            color: rgba(90, 122, 90, 0.8);
+            color: #666666;
             font-size: 14px;
-            border-top: 1px solid rgba(232, 245, 232, 0.3);
-            background: rgba(241, 248, 233, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
         }
-
-        
     </style>
 </head>
 <body>
