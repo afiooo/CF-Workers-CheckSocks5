@@ -1006,6 +1006,22 @@ async function HTML() {
     </div>
 
     <script>
+        function preprocessProxyUrl(input) {
+            let processed = input.trim();
+            
+            // 删除开头的斜杠
+            while (processed.startsWith('/')) {
+                processed = processed.substring(1);
+            }
+            
+            // 如果不包含协议，自动添加 socks5://
+            if (!processed.includes('://')) {
+                processed = 'socks5://' + processed;
+            }
+            
+            return processed;
+        }
+        
         function extractHostFromProxy(proxyUrl) {
             try {
                 // 移除协议前缀
@@ -1162,11 +1178,17 @@ async function HTML() {
             const entryInfo = document.getElementById('entryInfo');
             const exitInfo = document.getElementById('exitInfo');
             
-            const proxyUrl = proxyInput.value.trim();
-            if (!proxyUrl) {
+            const rawProxyUrl = proxyInput.value.trim();
+            if (!rawProxyUrl) {
                 alert('请输入代理链接');
                 return;
             }
+            
+            // 预处理代理链接
+            const proxyUrl = preprocessProxyUrl(rawProxyUrl);
+            
+            // 更新输入框显示处理后的链接
+            proxyInput.value = proxyUrl;
             
             checkBtn.disabled = true;
             entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测入口信息...</div>';
