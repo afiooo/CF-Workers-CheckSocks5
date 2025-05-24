@@ -951,10 +951,13 @@ async function HTML(网站图标, 网络备案, img) {
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             color: #fff;
-            padding: 35px;
-            text-align: center;
+            padding: 25px 35px;
             position: relative;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
         }
         
         .header::before {
@@ -968,28 +971,119 @@ async function HTML(网站图标, 网络备案, img) {
             pointer-events: none;
         }
         
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+        .header-content {
             position: relative;
             z-index: 1;
+            flex-shrink: 0;
+        }
+        
+        .header h1 {
+            font-size: 1.8em;
+            margin: 0 0 8px 0;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
         }
         
         .header p {
-            font-size: 1.1em;
+            font-size: 0.95em;
             opacity: 0.95;
-            position: relative;
-            z-index: 1;
+            margin: 0;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
         
-        .input-section {
-            padding: 35px;
+        .header-input {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            max-width: 600px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .header-input input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-input input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+            background: #ffffff;
+        }
+        
+        .header-input input::placeholder {
+            color: #888888;
+        }
+        
+        .header-input button {
+            padding: 14px 28px;
             background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        .header-input button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .header-input button:hover::before {
+            left: 100%;
+        }
+        
+        .header-input button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .header-input button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-input button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            background: rgba(150, 150, 150, 0.3);
+            border-color: rgba(150, 150, 150, 0.3);
+        }
+        
+        .header-input button:disabled::before {
+            display: none;
+        }
+
+        .input-section {
+            display: none;
         }
         
         .input-group {
@@ -1231,6 +1325,39 @@ async function HTML(网站图标, 网络备案, img) {
         }
         
         @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+                padding: 25px;
+            }
+            
+            .header-content {
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 1.6em;
+            }
+            
+            .header p {
+                font-size: 0.9em;
+            }
+            
+            .header-input {
+                max-width: none;
+            }
+            
+            .header-input input,
+            .header-input button {
+                width: 100%;
+            }
+            
+            .header-input {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
             .results-section {
                 grid-template-columns: 1fr;
             }
@@ -1242,10 +1369,6 @@ async function HTML(网站图标, 网络备案, img) {
             .input-group input,
             .input-group button {
                 width: 100%;
-            }
-            
-            .header h1 {
-                font-size: 2em;
             }
             
             .container {
@@ -1284,8 +1407,14 @@ async function HTML(网站图标, 网络备案, img) {
   </a>
     <div class="container">
         <div class="header">
-            <h1>代理检测工具</h1>
-            <p>检测代理服务器的出入口信息，支持 SOCKS5 和 HTTP 代理</p>
+            <div class="header-content">
+                <h1>代理检测工具</h1>
+                <p>检测代理服务器的出入口信息，支持 SOCKS5 和 HTTP 代理</p>
+            </div>
+            <div class="header-input">
+                <input type="text" id="proxyInput" placeholder="输入代理链接，例如：socks5://username:password@host:port" />
+                <button id="checkBtn" onclick="checkProxy()">检查代理</button>
+            </div>
         </div>
         
         <div class="input-section">
