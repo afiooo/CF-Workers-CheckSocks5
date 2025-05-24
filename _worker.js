@@ -102,8 +102,8 @@ export default {
         else if (env.URL) return await 代理URL(env.URL, url);
         else {
             const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
-            const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5 - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
-            let img = 'background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 50%, #a5d6a7 100%);';
+            const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5/HTTP - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
+            let img = 'background: #ffffff;';
             if (env.IMG) {
                 const imgs = await 整理(env.IMG);
                 img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
@@ -859,7 +859,7 @@ async function HTML(网站图标, 网络备案, img) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代理检测工具</title>
+    <title>Check Socks5/HTTP</title>
     ${网站图标}
     <style>
         * {
