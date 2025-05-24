@@ -513,12 +513,54 @@ async function socks5Connect(addressType, addressRemote, portRemote) {
 
 /**
  * 获取IP信息的通用函数
- * @param {string} ip IP地址
+ * @param {string} ip IP地址或域名
  * @returns {Promise<Object>} IP信息对象
  */
 async function getIpInfo(ip) {
-    // 使用Worker代理请求HTTP的IP API
-    const response = await fetch(`https://api.ipapi.is/?q=${ip}`);
+    // IPv4 正则表达式
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    
+    // IPv6 正则表达式（简化版，包含常见格式）
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+    
+    let finalIp = ip;
+    let allIps = null; // 存储所有解析的IP地址
+    
+    // 检查是否是标准的 IPv4 或 IPv6 格式
+    if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip)) {
+        // 不是标准 IP 格式，尝试 DNS 解析
+        try {
+            console.log(`正在解析域名: ${ip}`);
+            
+            // 并发获取 A 记录（IPv4）和 AAAA 记录（IPv6）
+            const [ipv4Records, ipv6Records] = await Promise.all([
+                fetchDNSRecords(ip, 'A').catch(() => []),
+                fetchDNSRecords(ip, 'AAAA').catch(() => [])
+            ]);
+            
+            // 提取 IP 地址
+            const ipv4Addresses = ipv4Records.map(record => record.data).filter(Boolean);
+            const ipv6Addresses = ipv6Records.map(record => record.data).filter(Boolean);
+            
+            // 合并所有 IP 地址
+            allIps = [...ipv4Addresses, ...ipv6Addresses];
+            
+            if (allIps.length === 0) {
+                throw new Error(`无法解析域名 ${ip} 的 IP 地址`);
+            }
+            
+            // 随机选择一个 IP 地址
+            finalIp = allIps[Math.floor(Math.random() * allIps.length)];
+            console.log(`域名 ${ip} 解析为: ${finalIp}`);
+            
+        } catch (dnsError) {
+            console.error(`DNS 解析失败:`, dnsError);
+            throw new Error(`无法解析域名 ${ip}: ${dnsError.message}`);
+        }
+    }
+
+    // 使用最终确定的 IP 地址查询信息
+    const response = await fetch(`https://api.ipapi.is/?q=${finalIp}`);
 
     if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
@@ -528,6 +570,25 @@ async function getIpInfo(ip) {
 
     // 添加时间戳到成功的响应数据中
     data.timestamp = new Date().toISOString();
+    
+    // 如果原始输入是域名，添加域名解析信息
+    if (finalIp !== ip && allIps) {
+        data.domain = ip; // 原始域名
+        data.resolved_ip = finalIp; // 当前查询使用的IP
+        data.ips = allIps; // 所有解析到的IP地址数组
+        
+        // 添加解析统计信息
+        const ipv4Count = allIps.filter(addr => ipv4Regex.test(addr)).length;
+        const ipv6Count = allIps.filter(addr => ipv6Regex.test(addr)).length;
+        
+        data.dns_info = {
+            total_ips: allIps.length,
+            ipv4_count: ipv4Count,
+            ipv6_count: ipv6Count,
+            selected_ip: finalIp,
+            all_ips: allIps
+        };
+    }
 
     return data;
 }
@@ -754,6 +815,32 @@ async function 整理(内容) {
     const 地址数组 = 替换后的内容.split(',');
 
     return 地址数组;
+}
+
+async function fetchDNSRecords(domain, type) {
+	// 构建查询参数
+	const query = new URLSearchParams({
+		name: domain,
+		type: type
+	});
+	const url = `https://cloudflare-dns.com/dns-query?${query.toString()}`;
+
+	// 发送HTTP GET请求
+	const response = await fetch(url, {
+		method: 'GET',
+		headers: {
+			'Accept': 'application/dns-json' // 接受DNS JSON格式的响应
+		}
+	});
+
+	// 检查响应是否成功
+	if (!response.ok) {
+		throw new Error(`获取DNS记录失败: ${response.statusText}`);
+	}
+
+	// 解析响应数据
+	const data = await response.json();
+	return data.Answer || [];
 }
 
 async function HTML() {
