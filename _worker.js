@@ -1024,32 +1024,60 @@ async function HTML(网站图标, 网络备案, img) {
         
         .input-group button {
             padding: 16px 32px;
-            background: rgba(100, 100, 100, 0.3);
+            background: linear-gradient(45deg, #2e7d32, #4caf50);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             color: white;
-            border: 2px solid rgba(150, 150, 150, 0.4);
+            border: 2px solid rgba(76, 175, 80, 0.6);
             border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .input-group button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .input-group button:hover::before {
+            left: 100%;
         }
         
         .input-group button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-            background: rgba(80, 80, 80, 0.4);
-            border-color: rgba(120, 120, 120, 0.6);
+            box-shadow: 0 6px 18px rgba(76, 175, 80, 0.4);
+            background: linear-gradient(45deg, #1b5e20, #2e7d32);
+            border-color: rgba(76, 175, 80, 0.8);
+        }
+        
+        .input-group button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
         }
         
         .input-group button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+            background: linear-gradient(45deg, #424242, #616161);
+            border-color: rgba(150, 150, 150, 0.4);
+        }
+        
+        .input-group button:disabled::before {
+            display: none;
         }
         
         .results-section {
@@ -1177,7 +1205,7 @@ async function HTML(网站图标, 网络备案, img) {
         }
         
         .github-corner svg {
-            fill: #2e7d32;
+            fill: #53b156;
             color: #ffffff;
             position: fixed;
             top: 0;
