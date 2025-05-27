@@ -65,25 +65,71 @@ socks5://username:password@[2001:db8::1]:1080
 **响应示例**：
 ```json
 {
-  "success": true,
-  "proxy": "socks5://username:password@host:port",
-  "ip": "1.2.3.4",
-  "location": {
-    "country_code": "US",
-    "city": "New York"
-  },
-  "asn": {
-    "asn": 12345,
-    "org": "Example ISP",
-    "abuser_score": "0.05"
-  },
-  "is_datacenter": false,
-  "is_proxy": true,
-  "is_vpn": false,
-  "is_tor": false,
-  "is_crawler": false,
-  "is_abuser": false,
-  "timestamp": "2025-01-11T10:30:00.000Z"
+    "success": true,
+    "proxy": "socks5://username:password@host:port",
+    "ip": "8.8.8.8",
+    "rir": "APNIC",
+    "is_bogon": false,
+    "is_mobile": false,
+    "is_satellite": false,
+    "is_crawler": false,
+    "is_datacenter": true,
+    "is_tor": false,
+    "is_proxy": false,
+    "is_vpn": true,
+    "is_abuser": false,
+    "datacenter": {
+        "network": "8.213.144.0/20",
+        "datacenter": "alibaba"
+    },
+    "company": {
+        "name": "Alibabacom Singapore E-Commerce Private Limited a",
+        "abuser_score": "0.01 (Elevated)",
+        "domain": "alibabacloud.com",
+        "type": "hosting",
+        "network": "8.213.128.0 - 8.213.159.255",
+        "whois": "https://api.ipapi.is/?whois=8.213.128.0"
+    },
+    "abuse": {
+        "name": "ABUSE ASEPLSG",
+        "address": "1 Raffles Place # 59-00 One Raffles Place, Tower One Singapore, Singapore",
+        "email": "abuse@alibaba-inc.com",
+        "phone": "+000000000"
+    },
+    "asn": {
+        "asn": 45102,
+        "abuser_score": "0.0015 (Low)",
+        "route": "8.213.144.0/20",
+        "descr": "ALIBABA-CN-NET Alibaba US Technology Co., Ltd., CN",
+        "country": "cn",
+        "active": true,
+        "org": "Alibaba (US) Technology Co., Ltd.",
+        "domain": "alibaba.com",
+        "abuse": "didong.jc@alibaba-inc.com",
+        "type": "business",
+        "updated": "2021-10-27",
+        "rir": "APNIC",
+        "whois": "https://api.ipapi.is/?whois=AS45102"
+    },
+    "location": {
+        "is_eu_member": false,
+        "calling_code": "82",
+        "currency_code": "KRW",
+        "continent": "AS",
+        "country": "South Korea",
+        "country_code": "KR",
+        "state": "서울특별시",
+        "city": "Seoul",
+        "latitude": 37.566,
+        "longitude": 126.9784,
+        "zip": "04524",
+        "timezone": "Asia/Seoul",
+        "local_time": "2025-05-27T15:52:11+09:00",
+        "local_time_unix": 1748328731,
+        "is_dst": false
+    },
+    "elapsed_ms": 1.07,
+    "timestamp": "2025-05-27T06:52:11.856Z"
 }
 ```
 
