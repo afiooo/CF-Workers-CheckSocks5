@@ -1244,6 +1244,79 @@ async function HTML(网站图标, 网络备案, img) {
             flex: 1;
             color: #666666;
         }
+
+        .ip-selector {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .more-ip-btn {
+            background: rgba(76, 175, 80, 0.1);
+            color: #2e7d32;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            order: 1;
+        }
+
+        .more-ip-btn:hover {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+
+        .ip-text {
+            order: 2;
+        }
+
+        .ip-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid rgba(200, 200, 200, 0.5);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            min-width: 200px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .ip-dropdown.show {
+            display: block;
+        }
+
+        .ip-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid rgba(200, 200, 200, 0.3);
+            font-size: 0.9em;
+        }
+
+        .ip-option:last-child {
+            border-bottom: none;
+        }
+
+        .ip-option:hover {
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .ip-option.active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #2e7d32;
+            font-weight: 600;
+        }
+
+        .ip-value-container {
+            position: relative;
+        }
         
         .status-yes {
             background: rgba(211, 47, 47, 0.8);
@@ -1446,6 +1519,9 @@ async function HTML(网站图标, 网络备案, img) {
     </div>
 
     <script>
+        let currentDomainInfo = null; // 存储当前域名的所有IP信息
+        let currentProxyTemplate = null; // 存储代理模板
+
         function preprocessProxyUrl(input) {
             let processed = input.trim();
             
@@ -1485,6 +1561,88 @@ async function HTML(网站图标, 网络备案, img) {
                 throw new Error('无法解析代理链接格式');
             }
         }
+
+        function isIPAddress(host) {
+            // IPv4 正则表达式
+            const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            // IPv6 正则表达式
+            const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+            
+            return ipv4Regex.test(host) || ipv6Regex.test(host);
+        }
+
+        function replaceHostInProxy(proxyUrl, newHost) {
+            try {
+                const [protocol, rest] = proxyUrl.split('://');
+                let urlPart = rest;
+                let authPart = '';
+                
+                // 处理认证信息
+                if (urlPart.includes('@')) {
+                    [authPart, urlPart] = urlPart.split('@');
+                    authPart += '@';
+                }
+                
+                // 分离主机和端口
+                const parts = urlPart.split(':');
+                const port = parts[parts.length - 1];
+                
+                // 构建新的代理URL
+                return \`\${protocol}://\${authPart}\${newHost}:\${port}\`;
+            } catch (error) {
+                throw new Error('无法替换代理链接中的主机');
+            }
+        }
+
+        async function fetchDNSRecords(domain, type) {
+            const query = new URLSearchParams({
+                name: domain,
+                type: type
+            });
+            const url = \`https://cloudflare-dns.com/dns-query?\${query.toString()}\`;
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/dns-json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(\`获取DNS记录失败: \${response.statusText}\`);
+            }
+
+            const data = await response.json();
+            return data.Answer || [];
+        }
+
+        async function resolveDomainIPs(domain) {
+            try {
+                const [ipv4Records, ipv6Records] = await Promise.all([
+                    fetchDNSRecords(domain, 'A').catch(() => []),
+                    fetchDNSRecords(domain, 'AAAA').catch(() => [])
+                ]);
+
+                const ipv4Addresses = ipv4Records.map(record => record.data).filter(Boolean);
+                const ipv6Addresses = ipv6Records.map(record => record.data).filter(Boolean);
+
+                const allIPs = [...ipv4Addresses, ...ipv6Addresses];
+
+                if (allIPs.length === 0) {
+                    throw new Error(\`无法解析域名 \${domain} 的 IP 地址\`);
+                }
+
+                return {
+                    domain: domain,
+                    all_ips: allIPs,
+                    ipv4_addresses: ipv4Addresses,
+                    ipv6_addresses: ipv6Addresses,
+                    default_ip: allIPs[0]
+                };
+            } catch (error) {
+                throw new Error(\`DNS解析失败: \${error.message}\`);
+            }
+        }
         
         function getAbusescoreColor(score) {
             // 提取数字部分并转换为百分比
@@ -1500,7 +1658,7 @@ async function HTML(网站图标, 网络备案, img) {
             return \`rgb(\${red}, \${green}, 0)\`;
         }
         
-        function formatInfoDisplay(data, containerId) {
+        function formatInfoDisplay(data, containerId, showIPSelector = false) {
             const container = document.getElementById(containerId);
             
             if (!data || data.error) {
@@ -1512,10 +1670,26 @@ async function HTML(网站图标, 网络备案, img) {
             const abusescoreMatch = (data.asn?.abuser_score || '0').match(/([0-9.]+)/);
             const abusescorePercentage = abusescoreMatch ? (parseFloat(abusescoreMatch[1]) * 100).toFixed(2) + '%' : '0%';
             
+            const ipDisplay = showIPSelector && currentDomainInfo && currentDomainInfo.all_ips.length > 1 
+                ? \`<div class="ip-selector">
+                     <button class="more-ip-btn" onclick="toggleIPDropdown()">更多IP</button>
+                     <span class="ip-text">\${data.ip || 'N/A'}</span>
+                     <div class="ip-dropdown" id="ipDropdown">
+                         \${currentDomainInfo.all_ips.map(ip => 
+                             \`<div class="ip-option \${ip === data.ip ? 'active' : ''}" onclick="selectIP('\${ip}')">\${ip}</div>\`
+                         ).join('')}
+                     </div>
+                   </div>\`
+                : data.ip || 'N/A';
+            
             container.innerHTML = \`
                 <div class="info-item">
                     <span class="info-label">IP地址:</span>
-                    <span class="info-value">\${data.ip || 'N/A'}</span>
+                    <span class="info-value">
+                        <div class="ip-value-container">
+                            \${ipDisplay}
+                        </div>
+                    </span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">网络爬虫:</span>
@@ -1591,6 +1765,61 @@ async function HTML(网站图标, 网络备案, img) {
                 </div>
             \`;
         }
+
+        function toggleIPDropdown() {
+            const dropdown = document.getElementById('ipDropdown');
+            dropdown.classList.toggle('show');
+            
+            // 点击其他地方关闭下拉菜单
+            document.addEventListener('click', function closeDropdown(e) {
+                if (!e.target.closest('.ip-value-container')) {
+                    dropdown.classList.remove('show');
+                    document.removeEventListener('click', closeDropdown);
+                }
+            });
+        }
+
+        async function selectIP(selectedIP) {
+            const dropdown = document.getElementById('ipDropdown');
+            dropdown.classList.remove('show');
+            
+            const checkBtn = document.getElementById('checkBtn');
+            const entryInfo = document.getElementById('entryInfo');
+            const exitInfo = document.getElementById('exitInfo');
+            
+            checkBtn.disabled = true;
+            entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在获取入口信息...</div>';
+            exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在获取出口信息...</div>';
+            
+            try {
+                // 更新入口信息
+                const entryData = await fetchEntryInfo(selectedIP);
+                if (entryData.error) {
+                    entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
+                } else {
+                    formatInfoDisplay(entryData, 'entryInfo', true);
+                }
+                
+                // 更新出口信息
+                const newProxyUrl = replaceHostInProxy(currentProxyTemplate, selectedIP);
+                const encodedProxy = encodeURIComponent(newProxyUrl);
+                const proxyResponse = await fetch(\`/check?proxy=\${encodedProxy}\`);
+                const proxyData = await proxyResponse.json();
+                
+                if (!proxyData.success) {
+                    exitInfo.innerHTML = '<div class="error">代理检测失败，请稍后重试</div>';
+                } else {
+                    formatInfoDisplay(proxyData, 'exitInfo', false);
+                }
+                
+            } catch (error) {
+                console.error('切换IP时出现错误:', error);
+                entryInfo.innerHTML = '<div class="error">切换失败，请稍后重试</div>';
+                exitInfo.innerHTML = '<div class="error">切换失败，请稍后重试</div>';
+            } finally {
+                checkBtn.disabled = false;
+            }
+        }
         
         async function fetchEntryInfo(host, retryCount = 0) {
             try {
@@ -1626,37 +1855,76 @@ async function HTML(网站图标, 网络备案, img) {
             
             // 预处理代理链接
             const proxyUrl = preprocessProxyUrl(rawProxyUrl);
+            currentProxyTemplate = proxyUrl;
             
             // 更新输入框显示处理后的链接
             proxyInput.value = proxyUrl;
             
             checkBtn.disabled = true;
-            entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测入口信息...</div>';
-            exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测出口信息...</div>';
+            entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在解析代理信息...</div>';
+            exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在解析代理信息...</div>';
             
             try {
-                // 检查代理（获取出口信息）
-                const encodedProxy = encodeURIComponent(proxyUrl);
-                const proxyResponse = await fetch(\`/check?proxy=\${encodedProxy}\`);
-                const proxyData = await proxyResponse.json();
+                const host = extractHostFromProxy(proxyUrl);
+                let targetIP = host;
+                let targetProxyUrl = proxyUrl;
+                currentDomainInfo = null;
                 
-                if (!proxyData.success) {
-                    entryInfo.innerHTML = '<div class="error">代理无效，请检查代理链接后重试</div>';
-                    exitInfo.innerHTML = '<div class="error">代理无效，请检查代理链接后重试</div>';
-                    return;
+                // 检查是否是域名
+                if (!isIPAddress(host)) {
+                    entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在解析域名...</div>';
+                    
+                    try {
+                        // 解析域名获取所有IP
+                        currentDomainInfo = await resolveDomainIPs(host);
+                        targetIP = currentDomainInfo.default_ip;
+                        targetProxyUrl = replaceHostInProxy(proxyUrl, targetIP);
+                        currentProxyTemplate = proxyUrl; // 保存原始模板
+                        
+                        console.log(\`域名 \${host} 解析为 IP: \${targetIP}\`);
+                        console.log(\`所有IP: \${currentDomainInfo.all_ips.join(', ')}\`);
+                    } catch (dnsError) {
+                        entryInfo.innerHTML = \`<div class="error">域名解析失败: \${dnsError.message}</div>\`;
+                        exitInfo.innerHTML = \`<div class="error">域名解析失败: \${dnsError.message}</div>\`;
+                        return;
+                    }
                 }
                 
-                // 显示出口信息
-                formatInfoDisplay(proxyData, 'exitInfo');
+                // 同时开始获取入口和出口信息
+                entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在获取入口信息...</div>';
+                exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测代理...</div>';
                 
-                // 获取入口信息
-                const host = extractHostFromProxy(proxyUrl);
-                const entryData = await fetchEntryInfo(host);
+                const [entryPromise, exitPromise] = await Promise.allSettled([
+                    fetchEntryInfo(targetIP),
+                    (async () => {
+                        const encodedProxy = encodeURIComponent(targetProxyUrl);
+                        const proxyResponse = await fetch(\`/check?proxy=\${encodedProxy}\`);
+                        return proxyResponse.json();
+                    })()
+                ]);
                 
-                if (entryData.error) {
-                    entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
+                // 处理入口信息结果
+                if (entryPromise.status === 'fulfilled') {
+                    const entryData = entryPromise.value;
+                    if (entryData.error) {
+                        entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
+                    } else {
+                        formatInfoDisplay(entryData, 'entryInfo', currentDomainInfo && currentDomainInfo.all_ips.length > 1);
+                    }
                 } else {
-                    formatInfoDisplay(entryData, 'entryInfo');
+                    entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
+                }
+                
+                // 处理出口信息结果
+                if (exitPromise.status === 'fulfilled') {
+                    const proxyData = exitPromise.value;
+                    if (!proxyData.success) {
+                        exitInfo.innerHTML = \`<div class="error">代理检测失败: \${proxyData.error || '请检查代理链接'}</div>\`;
+                    } else {
+                        formatInfoDisplay(proxyData, 'exitInfo', false);
+                    }
+                } else {
+                    exitInfo.innerHTML = '<div class="error">代理检测失败，请稍后重试</div>';
                 }
                 
             } catch (error) {
