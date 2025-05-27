@@ -1,5 +1,5 @@
 # CF-Workers-CheckSocks5
-
+![demo](./demo.png)
 一个基于 Cloudflare Workers 的高性能代理检测服务，支持 SOCKS5 和 HTTP 代理的连通性测试和 IP 信息查询。
 
 ## ✨ 功能特性
