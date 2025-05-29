@@ -4,10 +4,10 @@ let parsedSocks5Address = {};
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
+        const UA = request.headers.get('User-Agent') || 'null';
         const currentDate = new Date();
-        currentDate.setHours(0, 0, 0, 0);
-        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 5)); // 每5分钟一个时间戳
-        临时TOKEN = await 双重哈希(url.hostname + timestamp);
+        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 60 * 12)); // 每12小时一个时间戳
+        临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
         永久TOKEN = env.TOKEN || 临时TOKEN;
         if (url.pathname.toLowerCase() === "/check") {
             if (env.TOKEN) {
