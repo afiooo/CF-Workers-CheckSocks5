@@ -1527,6 +1527,11 @@ async function HTML(网站图标, 网络备案, img) {
         function preprocessProxyUrl(input) {
             let processed = input.trim();
             
+            // 如果包含 # 号，只保留 # 前面的代理部分
+            if (processed.includes('#')) {
+                processed = processed.split('#')[0].trim();
+            }
+            
             // 删除开头的斜杠
             while (processed.startsWith('/')) {
                 processed = processed.substring(1);
