@@ -529,8 +529,8 @@ async function getIpInfo(ip) {
     // IPv4 正则表达式
     const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
-    // IPv6 正则表达式（简化版，包含常见格式）
-    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+    // IPv6 正则表达式（完整版，包含所有常见格式）
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^::$|^::1$/;
 
     let finalIp = ip;
     let allIps = null; // 存储所有解析的IP地址
@@ -566,6 +566,8 @@ async function getIpInfo(ip) {
             console.error(`DNS 解析失败:`, dnsError);
             throw new Error(`无法解析域名 ${ip}: ${dnsError.message}`);
         }
+    } else {
+        console.log(`识别为有效IP地址: ${ip}`);
     }
 
     // 使用最终确定的 IP 地址查询信息
@@ -591,7 +593,7 @@ async function getIpInfo(ip) {
         const ipv6Count = allIps.filter(addr => ipv6Regex.test(addr)).length;
 
         data.dns_info = {
-            total_ips: allIps.length,
+            total_ips: allIPs.length,
             ipv4_count: ipv4Count,
             ipv6_count: ipv6Count,
             selected_ip: finalIp,
@@ -1566,7 +1568,7 @@ async function HTML(网站图标, 网络备案, img) {
             // IPv4 正则表达式
             const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
             // IPv6 正则表达式
-            const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+            const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^::$|^::1$/;
             
             return ipv4Regex.test(host) || ipv6Regex.test(host);
         }
@@ -1668,7 +1670,7 @@ async function HTML(网站图标, 网络备案, img) {
             
             const abusescoreColor = getAbusescoreColor(data.asn?.abuser_score || '0');
             const abusescoreMatch = (data.asn?.abuser_score || '0').match(/([0-9.]+)/);
-            const abusescorePercentage = abusescoreMatch ? (parseFloat(abusescoreMatch[1]) * 100).toFixed(2) + '%' : '0%';
+            const abusescorePercentage = abusescoreMatch ? (parseFloat(abusescoreMatch[1]) * 1000).toFixed(2) + '%' : '0%';
             
             const ipDisplay = showIPSelector && currentDomainInfo && currentDomainInfo.all_ips.length > 1 
                 ? \`<div class="ip-selector">
