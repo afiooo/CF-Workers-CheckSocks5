@@ -336,7 +336,7 @@ function socks5AddressParser(address) {
     // 解析服务器地址部分
     const latters = latter.split(":");
     // 从末尾提取端口号（因为 IPv6 地址中也包含冒号）
-    port = Number(latters.pop().replace(/[^\d]/g, ''));
+    port = latters.length === 1 ? 80 : Number(latters.pop().replace(/[^\d]/g, ''));
     if (isNaN(port)) {
         throw new Error('无效的 SOCKS 地址格式：端口号必须是数字');
     }
@@ -593,7 +593,7 @@ async function getIpInfo(ip) {
         const ipv6Count = allIps.filter(addr => ipv6Regex.test(addr)).length;
 
         data.dns_info = {
-            total_ips: allIPs.length,
+            total_ips: allIps.length,
             ipv4_count: ipv4Count,
             ipv6_count: ipv6Count,
             selected_ip: finalIp,
