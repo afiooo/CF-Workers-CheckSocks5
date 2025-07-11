@@ -1552,7 +1552,9 @@ async function HTML(网站图标, 网络备案, img) {
                 
                 // 处理认证信息 (username:password@host:port)
                 if (urlPart.includes('@')) {
-                    urlPart = urlPart.split('@')[1];
+                    // 使用 lastIndexOf 获取最后一个 @ 符号的位置
+                    const lastAtIndex = urlPart.lastIndexOf('@');
+                    urlPart = urlPart.substring(lastAtIndex + 1);
                 }
                 
                 // 提取主机名（移除端口）
@@ -1586,8 +1588,10 @@ async function HTML(网站图标, 网络备案, img) {
                 
                 // 处理认证信息
                 if (urlPart.includes('@')) {
-                    [authPart, urlPart] = urlPart.split('@');
-                    authPart += '@';
+                    // 使用 lastIndexOf 获取最后一个 @ 符号的位置
+                    const lastAtIndex = urlPart.lastIndexOf('@');
+                    authPart = urlPart.substring(0, lastAtIndex + 1);
+                    urlPart = urlPart.substring(lastAtIndex + 1);
                 }
                 
                 // 分离主机和端口
