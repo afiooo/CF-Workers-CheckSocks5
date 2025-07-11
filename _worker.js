@@ -335,14 +335,23 @@ function socks5AddressParser(address) {
 
     // 解析服务器地址部分
     const latters = latter.split(":");
-    // 从末尾提取端口号（因为 IPv6 地址中也包含冒号）
-    port = latters.length === 1 ? 80 : Number(latters.pop().replace(/[^\d]/g, ''));
+    // 检查是否是IPv6地址带端口格式 [xxx]:port
+    if (latters.length > 2 && latter.includes("]:")) {
+        // IPv6地址带端口格式：[2001:db8::1]:8080
+        port = Number(latter.split("]:")[1].replace(/[^\d]/g, ''));
+        hostname = latter.split("]:")[0] + "]"; // 正确提取hostname部分
+    } else if (latters.length === 2) {
+        // IPv4地址带端口或域名带端口
+        port = Number(latters.pop().replace(/[^\d]/g, ''));
+        hostname = latters.join(":");
+    } else {
+        port = 80;
+        hostname = latter;
+    }
+    
     if (isNaN(port)) {
         throw new Error('无效的 SOCKS 地址格式：端口号必须是数字');
     }
-
-    // 剩余部分就是主机名（可能是域名、IPv4 或 IPv6 地址）
-    hostname = latters.join(":");
 
     // 处理 IPv6 地址的特殊情况
     // IPv6 地址包含多个冒号，所以必须用方括号括起来，如 [2001:db8::1]
@@ -1542,6 +1551,33 @@ async function HTML(网站图标, 网络备案, img) {
                 processed = 'socks5://' + processed;
             }
             
+            // 检查是否包含IPv6地址需要方括号处理
+            // 如果用户直接输入了没有方括号的IPv6地址，自动添加方括号
+            const urlPart = processed.includes('://') ? processed.split('://')[1] : processed;
+            let processedUrlPart = urlPart;
+            
+            // 处理认证信息
+            let authPart = '';
+            if (processedUrlPart.includes('@')) {
+                const lastAtIndex = processedUrlPart.lastIndexOf('@');
+                authPart = processedUrlPart.substring(0, lastAtIndex + 1);
+                processedUrlPart = processedUrlPart.substring(lastAtIndex + 1);
+            }
+            
+            // 分离主机和端口
+            const parts = processedUrlPart.split(':');
+            if (parts.length > 2) {
+                // 可能是IPv6地址，检查主机部分
+                const port = parts[parts.length - 1];
+                const hostPart = parts.slice(0, -1).join(':');
+                
+                if (isIPv6Address(hostPart) && !hostPart.startsWith('[')) {
+                    // 重构URL，为IPv6地址添加方括号
+                    const protocol = processed.includes('://') ? processed.split('://')[0] : 'socks5';
+                    processed = protocol + '://' + authPart + '[' + hostPart + ']:' + port;
+                }
+            }
+            
             return processed;
         }
         
@@ -1557,10 +1593,17 @@ async function HTML(网站图标, 网络备案, img) {
                     urlPart = urlPart.substring(lastAtIndex + 1);
                 }
                 
+                // 处理IPv6地址格式 [ipv6]:port
+                if (urlPart.startsWith('[') && urlPart.includes(']:')) {
+                    // IPv6地址带端口格式：[2001:db8::1]:8080
+                    const host = urlPart.substring(1, urlPart.indexOf(']:'));
+                    return host;
+                }
+                
                 // 提取主机名（移除端口）
                 let host = urlPart.split(':')[0];
                 
-                // 处理IPv6地址
+                // 处理IPv6地址（已经有方括号的情况）
                 if (host.startsWith('[') && host.includes(']')) {
                     host = host.substring(1, host.indexOf(']'));
                 }
@@ -1578,6 +1621,13 @@ async function HTML(网站图标, 网络备案, img) {
             const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^::$|^::1$/;
             
             return ipv4Regex.test(host) || ipv6Regex.test(host);
+        }
+
+        function isIPv6Address(host) {
+            // IPv6 正则表达式 - 支持完整IPv6地址格式和简化格式
+            const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::$|^[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$|^::$|^::1$/;
+            
+            return ipv6Regex.test(host);
         }
 
         function replaceHostInProxy(proxyUrl, newHost) {
@@ -1598,8 +1648,14 @@ async function HTML(网站图标, 网络备案, img) {
                 const parts = urlPart.split(':');
                 const port = parts[parts.length - 1];
                 
+                // 检查新主机是否是IPv6地址，如果是且没有方括号则自动添加
+                let processedNewHost = newHost;
+                if (isIPv6Address(newHost) && !newHost.startsWith('[')) {
+                    processedNewHost = '[' + newHost + ']';
+                }
+                
                 // 构建新的代理URL
-                return \`\${protocol}://\${authPart}\${newHost}:\${port}\`;
+                return protocol + '://' + authPart + processedNewHost + ':' + port;
             } catch (error) {
                 throw new Error('无法替换代理链接中的主机');
             }
@@ -1803,8 +1859,14 @@ async function HTML(网站图标, 网络备案, img) {
             exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在获取出口信息...</div>';
             
             try {
+                // 准备用于入口信息查询的IP（去掉IPv6的方括号）
+                let entryQueryIP = selectedIP;
+                if (selectedIP.startsWith('[') && selectedIP.endsWith(']')) {
+                    entryQueryIP = selectedIP.substring(1, selectedIP.length - 1);
+                }
+                
                 // 更新入口信息
-                const entryData = await fetchEntryInfo(selectedIP);
+                const entryData = await fetchEntryInfo(entryQueryIP);
                 if (entryData.error) {
                     entryInfo.innerHTML = '<div class="error">入口信息获取失败，请稍后重试</div>';
                 } else {
@@ -1905,8 +1967,14 @@ async function HTML(网站图标, 网络备案, img) {
                 entryInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在获取入口信息...</div>';
                 exitInfo.innerHTML = '<div class="loading"><div class="spinner"></div>正在检测代理...</div>';
                 
+                // 准备用于入口信息查询的IP（去掉IPv6的方括号）
+                let entryQueryIP = targetIP;
+                if (targetIP.startsWith('[') && targetIP.endsWith(']')) {
+                    entryQueryIP = targetIP.substring(1, targetIP.length - 1);
+                }
+                
                 const [entryPromise, exitPromise] = await Promise.allSettled([
-                    fetchEntryInfo(targetIP),
+                    fetchEntryInfo(entryQueryIP),
                     (async () => {
                         const encodedProxy = encodeURIComponent(targetProxyUrl);
                         const proxyResponse = await fetch(\`/check?proxy=\${encodedProxy}\`);
