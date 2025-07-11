@@ -336,7 +336,7 @@ function socks5AddressParser(address) {
     // 解析服务器地址部分
     const latters = latter.split(":");
     // 从末尾提取端口号（因为 IPv6 地址中也包含冒号）
-    port = Number(latters.pop());
+    port = Number(latters.pop().replace(/[^\d]/g, ''));
     if (isNaN(port)) {
         throw new Error('无效的 SOCKS 地址格式：端口号必须是数字');
     }
