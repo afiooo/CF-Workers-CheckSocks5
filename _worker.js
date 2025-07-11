@@ -320,8 +320,8 @@ async function checkSocks5Proxy(hostname, port, path) {
 
 function socks5AddressParser(address) {
     // 使用 "@" 分割地址，分为认证部分和服务器地址部分
-    // reverse() 是为了处理没有认证信息的情况，确保 latter 总是包含服务器地址
-    let [latter, former] = address.split("@").reverse();
+    const lastAtIndex = address.lastIndexOf("@");
+    let [latter, former] = lastAtIndex === -1 ? [address, undefined] : [address.substring(lastAtIndex + 1), address.substring(0, lastAtIndex)];
     let username, password, hostname, port;
 
     // 如果存在 former 部分，说明提供了认证信息
