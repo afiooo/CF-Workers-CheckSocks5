@@ -3,78 +3,7 @@ import { connect } from 'cloudflare:sockets';
 let 永久TOKEN;
 let parsedSocks5Address = {};
 
-export default {
-    async fetch(request, env) {
-        永久TOKEN = env.TOKEN;
-        const url = new URL(request.url);
-
-        // API 路由
-        if (url.pathname.startsWith('/check') || url.pathname.startsWith('/ip-info')) {
-            if (!永久TOKEN) {
-                return new Response(JSON.stringify({ status: "error", message: "服务未配置TOKEN" }), { status: 500 });
-            }
-            if (url.searchParams.get('token') !== 永久TOKEN) {
-                return new Response(JSON.stringify({ status: "error", message: "无效的TOKEN" }), { status: 403 });
-            }
-
-            if (url.pathname.startsWith('/check')) {
-                const proxyParam = url.searchParams.get("proxy");
-                if (!proxyParam) return new Response(JSON.stringify({ success: false, error: "请提供 proxy 参数" }), { status: 400 });
-
-                if (proxyParam.toLowerCase().startsWith("socks5://")) return await 检测SOCKS5代理(proxyParam);
-                if (proxyParam.toLowerCase().startsWith("http")) return await 检测HTTP代理(proxyParam);
-                return new Response(JSON.stringify({ success: false, error: "不支持的代理协议" }), { status: 400 });
-            }
-
-            if (url.pathname.startsWith('/ip-info')) {
-                const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
-                try {
-                    const data = await getIpInfo(ip);
-                    return new Response(JSON.stringify(data, null, 4), { headers: { "content-type": "application/json; charset=UTF-8" }});
-                } catch (error) {
-                    return new Response(JSON.stringify({ status: "error", message: `IP查询失败: ${error.message}` }), { status: 500 });
-                }
-            }
-        }
-
-        // 页面访问路由
-        if (!永久TOKEN) {
-            return new Response("服务未配置，管理员需设置 'TOKEN' 环境变量。", { status: 503 });
-        }
-
-        if (url.searchParams.get('token') === 永久TOKEN) {
-            // Token正确，显示主页面并注入JS
-            const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
-            const 网络备案 = env.BEIAN || `© 2025 Check Socks5/HTTP`;
-            let img = 'background: #ffffff;';
-            if (env.IMG) {
-                const imgs = await 整理(env.IMG);
-                img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
-            }
-            const mainHtmlResponse = await HTML(网站图标, 网络备案, img);
-            let mainHtml = await mainHtmlResponse.text();
-
-            const scriptInjection = `
-                const 永久TOKEN = "${永久TOKEN}";
-                const 临时TOKEN = 永久TOKEN;
-                const originalCheckProxy = checkProxy;
-                checkProxy = async function() {
-                    // 注入token到API请求
-                    const originalFetch = window.fetch;
-                    window.fetch = function(url, options) {
-                        let newUrl = new URL(url, window.location.origin);
-                        newUrl.searchParams.set('token', 永久TOKEN);
-                        return originalFetch(newUrl.toString(), options);
-                    };
-                    await originalCheckProxy();
-                    window.fetch = originalFetch; // 恢复原始fetch
-                };
-                const originalSelectIP = selectIP;
-                selectIP = async function(ip) {
-                    const originalFetch = window.fetch;
-                    window.fetch = function(url, options) {
-                        let newUrl = new URL(url, window.location.origin);
-// --- 粘贴这个最终修正版的代码块 ---
+// --- 粘贴这个最终、完全修正的代码块 ---
 export default {
     async fetch(request, env) {
         永久TOKEN = env.TOKEN;
@@ -103,7 +32,8 @@ export default {
                 try {
                     const data = await getIpInfo(ip);
                     return new Response(JSON.stringify(data, null, 4), { headers: { "content-type": "application/json; charset=UTF-8" }});
-                } catch (error) 
+                } catch (error) {
+                    // 使用普通字符串拼接，避免构建错误
                     return new Response(JSON.stringify({ status: "error", message: 'IP查询失败: ' + error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
                 }
             }
@@ -116,25 +46,25 @@ export default {
 
         if (url.searchParams.get('token') === 永久TOKEN) {
             // Token正确，显示主页面
-            const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
-            const 网络备案 = env.BEIAN || `© 2025 Check Socks5/HTTP`;
+            // 使用普通字符串拼接，避免构建错误
+            const 网站图标 = env.ICO ? '<link rel="icon" href="' + env.ICO + '" type="image/x-icon">' : '';
+            const 网络备案 = env.BEIAN || '© 2025 Check Socks5/HTTP';
             let img = 'background: #ffffff;';
             if (env.IMG) {
                 const imgs = await 整理(env.IMG);
-                img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
+                // 使用普通字符串拼接，避免构建错误
+                img = "background-image: url('" + imgs[Math.floor(Math.random() * imgs.length)] + "');";
             }
             const mainHtmlResponse = await HTML(网站图标, 网络备案, img);
             let mainHtml = await mainHtmlResponse.text();
 
-            // *** 这是修正后的关键部分 ***
-            // 我们只向页面注入一个简单的变量定义即可
-            const scriptInjection = `
-            <script>
-                const 临时TOKEN = "${永久TOKEN}";
-            `;
+            // 使用普通字符串拼接，避免构建错误
+            const scriptInjection = '\n<script>\n' +
+                '    const 临时TOKEN = "' + 永久TOKEN + '";\n' +
+            '</script>';
             
-            // 将注入脚本替换掉页面中原有的 <script> 标签
-            mainHtml = mainHtml.replace('<script>', scriptInjection);
+            // 将注入脚本放在 </body> 标签之前，确保页面加载完毕
+            mainHtml = mainHtml.replace('</body>', scriptInjection + '\n</body>');
             
             return new Response(mainHtml, { headers: { "content-type": "text/html;charset=UTF-8" } });
 
@@ -144,6 +74,7 @@ export default {
         }
     },
 };
+// --- 新代码到此结束 ---
 // --- 新代码到此结束 ---
 // --- 新代码到此结束 ---
 // --- 粘贴这个新函数 ---
@@ -2075,6 +2006,7 @@ async function HTML(网站图标, 网络备案, img) {
     });
 
 }
+
 
 
 
