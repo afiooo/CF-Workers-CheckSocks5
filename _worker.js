@@ -104,7 +104,8 @@ export default {
                     const data = await getIpInfo(ip);
                     return new Response(JSON.stringify(data, null, 4), { headers: { "content-type": "application/json; charset=UTF-8" }});
                 } catch (error) {
-                    return new Response(JSON.stringify({ status: "error", message: `IP查询失败: ${error.message}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+                    // --- 替换为这行修正后的代码 ---
+return new Response(JSON.stringify({ status: "error", message: 'IP查询失败: ' + error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
                 }
             }
         }
@@ -2075,4 +2076,5 @@ async function HTML(网站图标, 网络备案, img) {
     });
 
 }
+
 
