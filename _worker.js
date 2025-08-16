@@ -1,117 +1,126 @@
 import { connect } from 'cloudflare:sockets';
-let 临时TOKEN, 永久TOKEN;
+// --- 粘贴这段新代码 ---
+let 永久TOKEN;
 let parsedSocks5Address = {};
+
 export default {
     async fetch(request, env) {
+        永久TOKEN = env.TOKEN;
         const url = new URL(request.url);
-        const UA = request.headers.get('User-Agent') || 'null';
-        const currentDate = new Date();
-        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 60 * 12)); // 每12小时一个时间戳
-        临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
-        永久TOKEN = env.TOKEN || 临时TOKEN;
-        if (url.pathname.toLowerCase() === "/check") {
-            if (env.TOKEN) {
-                if (!url.searchParams.has('token') || url.searchParams.get('token') !== 永久TOKEN) {
-                    return new Response(JSON.stringify({
-                        status: "error",
-                        message: `IP查询失败: 无效的TOKEN`,
-                        timestamp: new Date().toISOString()
-                    }, null, 4), {
-                        status: 403,
-                        headers: {
-                            "content-type": "application/json; charset=UTF-8",
-                            'Access-Control-Allow-Origin': '*'
-                        }
-                    });
+
+        // API 路由
+        if (url.pathname.startsWith('/check') || url.pathname.startsWith('/ip-info')) {
+            if (!永久TOKEN) {
+                return new Response(JSON.stringify({ status: "error", message: "服务未配置TOKEN" }), { status: 500 });
+            }
+            if (url.searchParams.get('token') !== 永久TOKEN) {
+                return new Response(JSON.stringify({ status: "error", message: "无效的TOKEN" }), { status: 403 });
+            }
+
+            if (url.pathname.startsWith('/check')) {
+                const proxyParam = url.searchParams.get("proxy");
+                if (!proxyParam) return new Response(JSON.stringify({ success: false, error: "请提供 proxy 参数" }), { status: 400 });
+
+                if (proxyParam.toLowerCase().startsWith("socks5://")) return await 检测SOCKS5代理(proxyParam);
+                if (proxyParam.toLowerCase().startsWith("http")) return await 检测HTTP代理(proxyParam);
+                return new Response(JSON.stringify({ success: false, error: "不支持的代理协议" }), { status: 400 });
+            }
+
+            if (url.pathname.startsWith('/ip-info')) {
+                const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
+                try {
+                    const data = await getIpInfo(ip);
+                    return new Response(JSON.stringify(data, null, 4), { headers: { "content-type": "application/json; charset=UTF-8" }});
+                } catch (error) {
+                    return new Response(JSON.stringify({ status: "error", message: `IP查询失败: ${error.message}` }), { status: 500 });
                 }
-            }
-            if (url.searchParams.has("socks5")) {
-                const 代理参数 = url.searchParams.get("socks5");
-                return await 检测SOCKS5代理(代理参数);
-            } else if (url.searchParams.has("http")) {
-                const 代理参数 = url.searchParams.get("http");
-                return await 检测HTTP代理(代理参数);
-            } else if (url.searchParams.has("proxy")) {
-                const 代理参数 = url.searchParams.get("proxy");
-                if (代理参数.toLowerCase().startsWith("socks5://")) {
-                    return await 检测SOCKS5代理(代理参数);
-                } else if (代理参数.toLowerCase().startsWith("http://")) {
-                    return await 检测HTTP代理(代理参数);
-                }
-            }
-            // 如果没有提供有效的代理参数，返回错误响应
-            return new Response(JSON.stringify({
-                success: false,
-                error: "请提供有效的代理参数：socks5、http 或 proxy"
-            }, null, 2), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } else if (url.pathname.toLowerCase() === '/ip-info') {
-            if (!url.searchParams.has('token') || (url.searchParams.get('token') !== 临时TOKEN) && (url.searchParams.get('token') !== 永久TOKEN)) {
-                return new Response(JSON.stringify({
-                    status: "error",
-                    message: `IP查询失败: 无效的TOKEN`,
-                    timestamp: new Date().toISOString()
-                }, null, 4), {
-                    status: 403,
-                    headers: {
-                        "content-type": "application/json; charset=UTF-8",
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
-            }
-            const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
-            try {
-                const data = await getIpInfo(ip);
-                // 返回数据给客户端，并添加CORS头
-                return new Response(JSON.stringify(data, null, 4), {
-                    headers: {
-                        "content-type": "application/json; charset=UTF-8",
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
-            } catch (error) {
-                console.error("IP查询失败:", error);
-                return new Response(JSON.stringify({
-                    status: "error",
-                    message: `IP查询失败: ${error.message}`,
-                    code: "API_REQUEST_FAILED",
-                    query: ip,
-                    timestamp: new Date().toISOString(),
-                    details: {
-                        errorType: error.name,
-                        stack: error.stack ? error.stack.split('\n')[0] : null
-                    }
-                }, null, 4), {
-                    status: 500,
-                    headers: {
-                        "content-type": "application/json; charset=UTF-8",
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
             }
         }
-        if (env.TOKEN) {
-            return new Response(await nginx(), {
-                headers: {
-                    'Content-Type': 'text/html; charset=UTF-8',
-                },
-            });
-        } else if (env.URL302) return Response.redirect(env.URL302, 302);
-        else if (env.URL) return await 代理URL(env.URL, url);
-        else {
+
+        // 页面访问路由
+        if (!永久TOKEN) {
+            return new Response("服务未配置，管理员需设置 'TOKEN' 环境变量。", { status: 503 });
+        }
+
+        if (url.searchParams.get('token') === 永久TOKEN) {
+            // Token正确，显示主页面并注入JS
             const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
-            const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5/HTTP - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
+            const 网络备案 = env.BEIAN || `© 2025 Check Socks5/HTTP`;
             let img = 'background: #ffffff;';
             if (env.IMG) {
                 const imgs = await 整理(env.IMG);
                 img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
             }
-            return await HTML(网站图标, 网络备案, img);
+            const mainHtmlResponse = await HTML(网站图标, 网络备案, img);
+            let mainHtml = await mainHtmlResponse.text();
+
+            const scriptInjection = `
+                const 永久TOKEN = "${永久TOKEN}";
+                const 临时TOKEN = 永久TOKEN;
+                const originalCheckProxy = checkProxy;
+                checkProxy = async function() {
+                    // 注入token到API请求
+                    const originalFetch = window.fetch;
+                    window.fetch = function(url, options) {
+                        let newUrl = new URL(url, window.location.origin);
+                        newUrl.searchParams.set('token', 永久TOKEN);
+                        return originalFetch(newUrl.toString(), options);
+                    };
+                    await originalCheckProxy();
+                    window.fetch = originalFetch; // 恢复原始fetch
+                };
+                const originalSelectIP = selectIP;
+                selectIP = async function(ip) {
+                    const originalFetch = window.fetch;
+                    window.fetch = function(url, options) {
+                        let newUrl = new URL(url, window.location.origin);
+                        newUrl.searchParams.set('token', 永久TOKEN);
+                        return originalFetch(newUrl.toString(), options);
+                    };
+                    await originalSelectIP(ip);
+                    window.fetch = originalFetch; // 恢复原始fetch
+                };
+            `;
+            mainHtml = mainHtml.replace('</script>', scriptInjection + '</script>');
+            return new Response(mainHtml, { headers: { "content-type": "text/html;charset=UTF-8" } });
+        } else {
+            // Token错误或缺失，显示登录页
+            return renderLoginPage();
         }
     },
 };
+// --- 新代码到此结束 ---
+// --- 粘贴这个新函数 ---
+function renderLoginPage() {
+    const html = `
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>身份验证</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+            .login-container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 320px; width: 90%; }
+            h1 { margin-bottom: 20px; color: #333; font-size: 1.5em; }
+            input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+            button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+            button:hover { background-color: #0056b3; }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>请输入访问令牌</h1>
+            <form method="GET" action="/">
+                <input type="password" name="token" placeholder="Token" required>
+                <button type="submit">访问</button>
+            </form>
+        </div>
+    </body>
+    </html>`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html;charset=UTF-8' }});
+}
+// --- 新函数到此结束 ---
 
 async function 检测HTTP代理(代理参数) {
     代理参数 = 代理参数.includes("://") ? 代理参数.split('://')[1] : 代理参数;
@@ -800,27 +809,6 @@ async function 代理URL(代理网址, 目标网址) {
     return 新响应;
 }
 
-/**
- * 双重MD5哈希函数
- * 这个函数对输入文本进行两次MD5哈希，增强安全性
- * 第二次哈希使用第一次哈希结果的一部分作为输入
- * 
- * @param {string} 文本 要哈希的文本
- * @returns {Promise<string>} 双重哈希后的小写十六进制字符串
- */
-async function 双重哈希(文本) {
-    const 编码器 = new TextEncoder();
-
-    const 第一次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(文本));
-    const 第一次哈希数组 = Array.from(new Uint8Array(第一次哈希));
-    const 第一次十六进制 = 第一次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
-
-    const 第二次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(第一次十六进制.slice(7, 27)));
-    const 第二次哈希数组 = Array.from(new Uint8Array(第二次哈希));
-    const 第二次十六进制 = 第二次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
-
-    return 第二次十六进制.toLowerCase();
-}
 
 async function 整理(内容) {
     // 将制表符、双引号、单引号和换行符都替换为逗号
@@ -2029,4 +2017,5 @@ async function HTML(网站图标, 网络备案, img) {
     return new Response(html, {
         headers: { "content-type": "text/html;charset=UTF-8" }
     });
+
 }
