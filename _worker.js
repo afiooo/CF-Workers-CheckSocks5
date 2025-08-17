@@ -20,7 +20,7 @@ let 临时TOKEN, 永久TOKEN;
 let parsedSocks5Address = {};
 
 // --- 密码验证相关常量 ---
-const AUTH_COOKIE_NAME = 'afio251714';
+const AUTH_COOKIE_NAME = afio251714;
 
 /**
  * 助手函数：SHA-256 哈希
@@ -2162,3 +2162,4 @@ async function HTML(网站图标, 网络备案, img) {
         headers: { "content-type": "text/html;charset=UTF-8" }
     });
 }
+
