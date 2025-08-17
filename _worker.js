@@ -1,54 +1,97 @@
+/*
+ * =================================================================================
+ * Cloudflare Sockets API (TCP)
+ * ---------------------------------------------------------------------------------
+ * This code utilizes the 'cloudflare:sockets' API for direct TCP connections.
+ * It is essential for the SOCKS5 and HTTP proxy checking functionalities.
+ * To enable this, you must add the following compatibility flag to your 
+ * wrangler.toml file:
+ *
+ * compatibility_flags = [ "streams_enable_constructors", "nodejs_compat" ]
+ *
+ * This ensures the Streams API and other necessary features are available.
+ * Learn more at: https://developers.cloudflare.com/workers/runtime-apis/sockets/
+ * =================================================================================
+ */
 import { connect } from 'cloudflare:sockets';
+
+// 全局变量区
 let 临时TOKEN, 永久TOKEN;
 let parsedSocks5Address = {};
-export default {
-    async fetch(request, env) {
-        const url = new URL(request.url);
-        const UA = request.headers.get('User-Agent') || 'null';
-        const currentDate = new Date();
-        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 60 * 12)); // 每12小时一个时间戳
-        临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
-        永久TOKEN = env.TOKEN || 临时TOKEN;
-        if (url.pathname.toLowerCase() === "/check") {
-            if (env.TOKEN) {
-                if (!url.searchParams.has('token') || url.searchParams.get('token') !== 永久TOKEN) {
-                    return new Response(JSON.stringify({
-                        status: "error",
-                        message: `IP查询失败: 无效的TOKEN`,
-                        timestamp: new Date().toISOString()
-                    }, null, 4), {
-                        status: 403,
-                        headers: {
-                            "content-type": "application/json; charset=UTF-8",
-                            'Access-Control-Allow-Origin': '*'
-                        }
-                    });
-                }
-            }
-            if (url.searchParams.has("socks5")) {
-                const 代理参数 = url.searchParams.get("socks5");
-                return await 检测SOCKS5代理(代理参数);
-            } else if (url.searchParams.has("http")) {
-                const 代理参数 = url.searchParams.get("http");
-                return await 检测HTTP代理(代理参数);
-            } else if (url.searchParams.has("proxy")) {
-                const 代理参数 = url.searchParams.get("proxy");
-                if (代理参数.toLowerCase().startsWith("socks5://")) {
-                    return await 检测SOCKS5代理(代理参数);
-                } else if (代理参数.toLowerCase().startsWith("http://")) {
-                    return await 检测HTTP代理(代理参数);
-                }
-            }
-            // 如果没有提供有效的代理参数，返回错误响应
-            return new Response(JSON.stringify({
-                success: false,
-                error: "请提供有效的代理参数：socks5、http 或 proxy"
-            }, null, 2), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } else if (url.pathname.toLowerCase() === '/ip-info') {
-            if (!url.searchParams.has('token') || (url.searchParams.get('token') !== 临时TOKEN) && (url.searchParams.get('token') !== 永久TOKEN)) {
+
+// --- 密码验证相关常量 ---
+const AUTH_COOKIE_NAME = 'afio251714';
+
+/**
+ * 助手函数：SHA-256 哈希
+ * @param {string} text - 要哈希的文本
+ * @returns {Promise<string>} - 哈希后的十六进制字符串
+ */
+async function sha256(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * 助手函数：创建登录页面
+ * @param {boolean} hasError - 是否显示错误信息
+ * @returns {Response}
+ */
+function createLoginPage(hasError = false) {
+    const errorMessage = hasError ? '<p class="error">密码错误，请重试。</p>' : '';
+    const html = `
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>需要身份验证</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+            .login-container { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+            h1 { margin-top: 0; color: #333; }
+            input[type="password"] { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+            button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+            button:hover { background-color: #0056b3; }
+            .error { color: #d93025; margin-bottom: 10px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>访问受限</h1>
+            <p>请输入密码以继续</p>
+            ${errorMessage}
+            <form method="post">
+                <input type="password" name="password" placeholder="请输入密码" required autofocus>
+                <button type="submit">登录</button>
+            </form>
+        </div>
+    </body>
+    </html>`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html;charset=UTF-8' }, status: 401 });
+}
+
+
+/**
+ * 主应用逻辑（您原来的 fetch 函数）
+ * @param {Request} request
+ * @param {object} env
+ * @returns {Promise<Response>}
+ */
+async function handleApplication(request, env) {
+    // --- 这里是您原来 `fetch` 函数的所有代码，保持不变 ---
+    const url = new URL(request.url);
+    const UA = request.headers.get('User-Agent') || 'null';
+    const currentDate = new Date();
+    const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 60 * 12)); // 每12小时一个时间戳
+    临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
+    永久TOKEN = env.TOKEN || 临时TOKEN;
+    if (url.pathname.toLowerCase() === "/check") {
+        if (env.TOKEN) {
+            if (!url.searchParams.has('token') || url.searchParams.get('token') !== 永久TOKEN) {
                 return new Response(JSON.stringify({
                     status: "error",
                     message: `IP查询失败: 无效的TOKEN`,
@@ -61,57 +104,146 @@ export default {
                     }
                 });
             }
-            const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
-            try {
-                const data = await getIpInfo(ip);
-                // 返回数据给客户端，并添加CORS头
-                return new Response(JSON.stringify(data, null, 4), {
-                    headers: {
-                        "content-type": "application/json; charset=UTF-8",
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
-            } catch (error) {
-                console.error("IP查询失败:", error);
-                return new Response(JSON.stringify({
-                    status: "error",
-                    message: `IP查询失败: ${error.message}`,
-                    code: "API_REQUEST_FAILED",
-                    query: ip,
-                    timestamp: new Date().toISOString(),
-                    details: {
-                        errorType: error.name,
-                        stack: error.stack ? error.stack.split('\n')[0] : null
-                    }
-                }, null, 4), {
-                    status: 500,
-                    headers: {
-                        "content-type": "application/json; charset=UTF-8",
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
+        }
+        if (url.searchParams.has("socks5")) {
+            const 代理参数 = url.searchParams.get("socks5");
+            return await 检测SOCKS5代理(代理参数);
+        } else if (url.searchParams.has("http")) {
+            const 代理参数 = url.searchParams.get("http");
+            return await 检测HTTP代理(代理参数);
+        } else if (url.searchParams.has("proxy")) {
+            const 代理参数 = url.searchParams.get("proxy");
+            if (代理参数.toLowerCase().startsWith("socks5://")) {
+                return await 检测SOCKS5代理(代理参数);
+            } else if (代理参数.toLowerCase().startsWith("http://")) {
+                return await 检测HTTP代理(代理参数);
             }
         }
-        if (env.TOKEN) {
-            return new Response(await nginx(), {
+        // 如果没有提供有效的代理参数，返回错误响应
+        return new Response(JSON.stringify({
+            success: false,
+            error: "请提供有效的代理参数：socks5、http 或 proxy"
+        }, null, 2), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } else if (url.pathname.toLowerCase() === '/ip-info') {
+        if (!url.searchParams.has('token') || (url.searchParams.get('token') !== 临时TOKEN) && (url.searchParams.get('token') !== 永久TOKEN)) {
+            return new Response(JSON.stringify({
+                status: "error",
+                message: `IP查询失败: 无效的TOKEN`,
+                timestamp: new Date().toISOString()
+            }, null, 4), {
+                status: 403,
                 headers: {
-                    'Content-Type': 'text/html; charset=UTF-8',
-                },
+                    "content-type": "application/json; charset=UTF-8",
+                    'Access-Control-Allow-Origin': '*'
+                }
             });
-        } else if (env.URL302) return Response.redirect(env.URL302, 302);
-        else if (env.URL) return await 代理URL(env.URL, url);
-        else {
-            const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
-            const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5/HTTP - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
-            let img = 'background: #ffffff;';
-            if (env.IMG) {
-                const imgs = await 整理(env.IMG);
-                img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
-            }
-            return await HTML(网站图标, 网络备案, img);
         }
+        const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
+        try {
+            const data = await getIpInfo(ip);
+            // 返回数据给客户端，并添加CORS头
+            return new Response(JSON.stringify(data, null, 4), {
+                headers: {
+                    "content-type": "application/json; charset=UTF-8",
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
+        } catch (error) {
+            console.error("IP查询失败:", error);
+            return new Response(JSON.stringify({
+                status: "error",
+                message: `IP查询失败: ${error.message}`,
+                code: "API_REQUEST_FAILED",
+                query: ip,
+                timestamp: new Date().toISOString(),
+                details: {
+                    errorType: error.name,
+                    stack: error.stack ? error.stack.split('\n')[0] : null
+                }
+            }, null, 4), {
+                status: 500,
+                headers: {
+                    "content-type": "application/json; charset=UTF-8",
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
+        }
+    }
+    if (env.TOKEN) {
+        return new Response(await nginx(), {
+            headers: {
+                'Content-Type': 'text/html; charset=UTF-8',
+            },
+        });
+    } else if (env.URL302) return Response.redirect(env.URL302, 302);
+    else if (env.URL) return await 代理URL(env.URL, url);
+    else {
+        const 网站图标 = env.ICO ? `<link rel="icon" href="${env.ICO}" type="image/x-icon">` : '';
+        const 网络备案 = env.BEIAN || `&copy; 2025 Check Socks5/HTTP - 基于 Cloudflare Workers 构建的高性能代理验证服务 | by cmliu`;
+        let img = 'background: #ffffff;';
+        if (env.IMG) {
+            const imgs = await 整理(env.IMG);
+            img = `background-image: url('${imgs[Math.floor(Math.random() * imgs.length)]}');`;
+        }
+        return await HTML(网站图标, 网络备案, img);
+    }
+}
+
+
+export default {
+    /**
+     * 主入口 fetch 函数，现在包含了密码验证逻辑
+     * @param {Request} request
+     * @param {object} env
+     * @returns {Promise<Response>}
+     */
+    async fetch(request, env) {
+        // 如果没有设置 PASSWORD 环境变量，则直接跳过验证
+        if (!env.PASSWORD) {
+            return await handleApplication(request, env);
+        }
+
+        const validCookie = await sha256(env.PASSWORD);
+
+        // 处理密码提交
+        if (request.method === 'POST') {
+            const formData = await request.formData();
+            const password = formData.get('password');
+            if (password === env.PASSWORD) {
+                const response = new Response(null, {
+                    status: 302,
+                    headers: {
+                        'Location': new URL(request.url).pathname, // 重定向回当前页面
+                    },
+                });
+                // 设置安全的HttpOnly Cookie，有效期为1天
+                response.headers.append('Set-Cookie', `${AUTH_COOKIE_NAME}=${validCookie}; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax;`);
+                return response;
+            } else {
+                return createLoginPage(true); // 显示带错误信息的登录页
+            }
+        }
+
+        // 检查现有Cookie是否有效
+        const cookieHeader = request.headers.get('Cookie');
+        if (cookieHeader && cookieHeader.includes(`${AUTH_COOKIE_NAME}=${validCookie}`)) {
+            // Cookie有效，执行主应用逻辑
+            return await handleApplication(request, env);
+        }
+
+        // Cookie无效或不存在，显示登录页面
+        return createLoginPage();
     },
 };
+
+
+
+// =========================================================================================
+// --- 以下是您原来的所有函数，保持原样，无需任何修改 ---
+// =========================================================================================
 
 async function 检测HTTP代理(代理参数) {
     代理参数 = 代理参数.includes("://") ? 代理参数.split('://')[1] : 代理参数;
@@ -679,7 +811,7 @@ async function httpConnect(addressRemote, portRemote) {
             // 检查是否收到完整的HTTP响应头
             if (respText.includes('\r\n\r\n')) {
                 // 分离HTTP头和可能的数据部分
-                const headersEndPos = respText.indexOf('\r\n\r\n') + 4;
+                const headersEndPos = respText.indexOf('\r\n\r\n") + 4;
                 const headers = respText.substring(0, headersEndPos);
 
                 console.log(`收到HTTP代理响应: ${headers.split('\r\n')[0]}`);
